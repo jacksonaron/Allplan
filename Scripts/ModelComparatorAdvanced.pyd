@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PythonDefinition xmlns="http://www.nemetschek.com/Allplan/PythonDefinition/1.0">
+  <Name>Model 3D Element Comparator (Advanced)</Name>
+  <Description>Advanced tool for detecting and comparing 3D elements between two Allplan models with detailed reporting and similarity analysis</Description>
+  <Author>Your Name</Author>
+  <Version>1.0</Version>
+  <Date>2024-12-19</Date>
+  <MinAllplanVersion>2026</MinAllplanVersion>
+  <MaxAllplanVersion>2026</MaxAllplanVersion>
+  <PythonFile>ModelComparatorAdvanced.py</PythonFile>
+  <Icon>None</Icon>
+  <Menu>
+    <Path>Tools</Path>
+    <Position>AtEnd</Position>
+  </Menu>
+  <Ribbon>
+    <Tab>Add-ins</Tab>
+    <Group>Model Tools</Group>
+    <Position>AtEnd</Position>
+  </Ribbon>
+  <Scope>
+    <Project>true</Project>
+    <Part>true</Part>
+    <Layout>false</Layout>
+  </Scope>
+</PythonDefinition>
