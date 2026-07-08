@@ -4,20 +4,91 @@ A collection of Python scripts for Allplan 2026 that detect and compare 3D eleme
 
 ## Available Scripts
 
-### 1. **Project Model Comparator** ⭐ RECOMMENDED FOR YOUR USE CASE
-- **Files**: `ProjectModelComparator.pyd` + `ProjectModelComparator.py`
-- **Purpose**: Compare 3D elements between **two drawing files already loaded in the same Allplan project**
-- **Perfect for**: Comparing two parts/drawing files within one project
+### 1. **Color Model Comparator** ⭐ RECOMMENDED FOR YOUR USE CASE
+- **Files**: `ColorModelComparator.pyd` + `ColorModelComparator.py`
+- **Purpose**: Compare 3D models **by color** across **all open drawing files** in a project
+- **Perfect for**: Comparing two sets of models (e.g., existing vs proposed) when they're distinguished by color and spread across multiple drawing files
+- **Features**:
+  - Finds all elements of a specific color across ALL open drawing files
+  - Compares two color sets against each other
+  - Highlights elements from first color set that are missing in the second
+  - Shows distribution of models across drawing files
 
-### 2. **Model Comparator (Basic)**
+### 2. **Project Model Comparator**
+- **Files**: `ProjectModelComparator.pyd` + `ProjectModelComparator.py`
+- **Purpose**: Compare 3D elements between **two drawing files already loaded in the same project**
+- **Features**:
+  - Lists all open drawing files in your current project
+  - Lets you select any two to compare
+  - Highlights missing elements in the second drawing file
+
+### 3. **Model Comparator (Basic)**
 - **Files**: `ModelComparator.pyd` + `ModelComparator.py`
 - **Purpose**: Basic comparison of 3D elements between models
 - **Use case**: Simple element detection and comparison
 
-### 3. **Model Comparator (Advanced)**
+### 4. **Model Comparator (Advanced)**
 - **Files**: `ModelComparatorAdvanced.pyd` + `ModelComparatorAdvanced.py`
 - **Purpose**: Advanced comparison with file selection dialogs
 - **Use case**: Comparing separate model files with detailed reporting
+
+## Which Script Should You Use?
+
+| Your Need | Recommended Script |
+|-----------|-------------------|
+| Compare models by color across multiple drawing files | **Color Model Comparator** |
+| Compare two drawing files in the same project | Project Model Comparator |
+| Compare two separate model files | Model Comparator (Advanced) |
+| Simple model comparison | Model Comparator (Basic) |
+
+## For Your Specific Use Case
+
+Since you want to **compare one set of models to another set, where the models are spread across several drawing files and distinguished by color**, use the **Color Model Comparator**:
+
+### How to Use Color Model Comparator:
+
+1. **Open your Allplan project**
+2. **Load all drawing files** that contain the models you want to compare
+3. **Color your models appropriately**:
+   - For example: Color all "existing" models **red**
+   - Color all "proposed" models **green**
+4. **Run the script**: Tools → Color Model Comparator
+5. **Enter the two colors** you want to compare:
+   - First color: The reference set (e.g., red for existing)
+   - Second color: The set to check against (e.g., green for proposed)
+6. **View the results**:
+   - A detailed report showing:
+     - How many models of each color were found
+     - How many are common to both sets
+     - Which models from the first set are missing in the second
+     - Distribution across drawing files
+   - **Highlighted missing elements**: Red spheres with "MISSING" text at positions where models from the first color set are missing in the second
+
+### Example Workflow:
+
+```
+Your Project:
+├── Drawing File 1
+│   ├── Red model A (existing)
+│   ├── Red model B (existing)
+│   └── Green model X (proposed)
+├── Drawing File 2
+│   ├── Red model C (existing)
+│   └── Green model Y (proposed)
+└── Drawing File 3
+    ├── Red model D (existing)
+    └── Green model Z (proposed)
+
+Run Color Model Comparator:
+- First color: Red (existing models)
+- Second color: Green (proposed models)
+
+Result:
+- Finds all red models across all 3 drawing files
+- Finds all green models across all 3 drawing files
+- Compares them
+- Highlights any red models that don't have corresponding green models
+```
 
 ## Features (All Scripts)
 
@@ -30,6 +101,7 @@ A collection of Python scripts for Allplan 2026 that detect and compare 3D eleme
   - Geometric differences between corresponding elements
 - Similarity scoring for partial matches
 - Detailed reporting with export capabilities
+- **Highlighting of missing elements** (Color Model Comparator and Project Model Comparator)
 
 ## Installation
 
@@ -40,6 +112,8 @@ A collection of Python scripts for Allplan 2026 that detect and compare 3D eleme
 2. **Folder structure** should look like:
    ```
    Scripts/
+   ├── ColorModelComparator.pyd
+   ├── ColorModelComparator.py
    ├── ProjectModelComparator.pyd
    ├── ProjectModelComparator.py
    ├── ModelComparator.pyd
@@ -52,31 +126,6 @@ A collection of Python scripts for Allplan 2026 that detect and compare 3D eleme
    - **Menu**: Tools → [Script Name]
    - **Ribbon**: Add-ins → Model Tools → [Script Name]
 
-## For Your Specific Use Case
-
-Since you want to **compare two drawing files already loaded in the same project**, use the **Project Model Comparator**:
-
-### How to Use Project Model Comparator:
-
-1. **Open your Allplan project**
-2. **Load both drawing files** (parts) that you want to compare
-   - Make sure both are open in the project
-3. **Run the script**: Tools → Project Model Comparator
-4. **Select the two drawing files** from the list shown
-5. **View the comparison results**
-
-### What It Does:
-- Lists all open drawing files in your current project
-- Lets you select any two to compare
-- Compares all 3D elements between them
-- Shows you:
-  - How many elements are in each drawing file
-  - How many elements are common to both
-  - Which elements are only in the first drawing
-  - Which elements are only in the second drawing
-  - Geometric differences between similar elements
-- Option to export a detailed report to a text file
-
 ## Customization
 
 ### Changing the Comparison Tolerance
@@ -85,12 +134,12 @@ Edit the `tolerance` parameter when creating the comparator:
 
 ```python
 # Default tolerance is 0.001 (1mm)
-comparator = ProjectModelComparator(tolerance=0.01)  # 1cm tolerance
+comparator = ColorModelComparator(tolerance=0.01)  # 1cm tolerance
 ```
 
 ### Adding More Element Types
 
-Edit the `get_all_3d_elements()` function to include additional element types:
+Edit the `get_all_3d_elements_by_color()` function to include additional element types:
 
 ```python
 # Add more element types to this list
@@ -103,13 +152,19 @@ element_types_3d = [
 ]
 ```
 
-### Advanced Geometric Comparison
+### Changing Highlight Appearance
 
-For more accurate geometric comparison, enhance the `create_element_signature()` function to:
-- Extract mesh vertices
-- Compare surface areas
-- Compare volumes
-- Use more sophisticated geometric algorithms
+Modify the `highlight_missing_elements()` method to change:
+- Marker size (currently 10cm radius spheres)
+- Marker color (currently red)
+- Text label content
+- Layer name
+
+```python
+# Change these values
+self.highlight_color = abe.Color(255, 255, 0)  # Yellow instead of red
+sphere_radius = 0.15  # 15cm instead of 10cm
+```
 
 ## Requirements
 
@@ -119,6 +174,8 @@ For more accurate geometric comparison, enhance the `create_element_signature()`
 
 ## Files
 
+- **ColorModelComparator.pyd** - Definition file for color-based comparison
+- **ColorModelComparator.py** - Main script for comparing models by color
 - **ProjectModelComparator.pyd** - Definition file for project comparison
 - **ProjectModelComparator.py** - Main script for comparing drawing files in a project
 - **ModelComparator.pyd** - Basic definition file
@@ -133,10 +190,10 @@ For more accurate geometric comparison, enhance the `create_element_signature()`
    - Ensure the `.pyd` file has the correct XML structure
    - Restart Allplan
 
-2. **No drawing files found**:
-   - Make sure you have opened an Allplan project
-   - Make sure at least two drawing files (parts) are loaded in the project
-   - The script only sees drawing files that are currently open
+2. **No elements found**:
+   - Make sure your models have the colors you specified
+   - Check that the drawing files are open
+   - Verify the models are 3D elements (not 2D)
 
 3. **Permission errors**:
    - Make sure you have read access to the project
@@ -144,7 +201,7 @@ For more accurate geometric comparison, enhance the `create_element_signature()`
 
 4. **Element detection issues**:
    - Some custom elements might not be detected
-   - Add the element type to the `get_all_3d_elements()` function
+   - Add the element type to the `get_all_3d_elements_by_color()` function
 
 ## Support
 
@@ -156,5 +213,6 @@ This script is provided as-is for educational and professional use.
 
 ## Version History
 
+- **1.2** (2024-12-19): Added Color Model Comparator for comparing models by color across multiple drawing files
 - **1.1** (2024-12-19): Added Project Model Comparator for comparing drawing files within a project
 - **1.0** (2024-12-19): Initial release with basic and advanced model comparators
