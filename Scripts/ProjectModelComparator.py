@@ -4,11 +4,18 @@ Project Model Comparator for Allplan 2026
 This script compares 3D elements between two drawing files (parts) that are already
 loaded in the current Allplan project.
 
+Features:
+- Compare 3D elements between two drawing files in the same project
+- Identify elements that exist in one but not the other
+- HIGHLIGHT missing elements in the second drawing file
+- Detailed reporting with export capabilities
+
 Usage:
 1. Open your Allplan project
 2. Make sure both drawing files you want to compare are loaded
 3. Run this script
 4. Select the two drawing files from the list of open parts
+5. Elements missing in the second drawing will be highlighted
 """
 
 import AllplanBaseElements as abe
@@ -30,7 +37,81 @@ class ProjectModelComparator:
         """
         self.tolerance = tolerance
         self.project = abe.Document.GetCurrentProject()
+        self.highlight_color = abe.Color(255, 0, 0)  # Red color for highlighting
+        self.highlight_layer = None
+        self.created_highlight_layer = False
         
+    def create_highlight_layer(self, doc: abe.Document) -> bool:
+        """
+        Create a special layer for highlighting missing elements.
+        
+        Args:
+            doc: Document to create the layer in
+            
+        Returns:
+            True if layer was created or already exists
+        """
+        try:
+            # Check if layer already exists
+            layer_name = "COMPARISON_HIGHLIGHT_MISSING"
+            
+            # Try to get existing layer
+            layer = abe.Layer.Find(layer_name)
+            if layer:
+                self.highlight_layer = layer
+                return True
+            
+            # Create new layer
+            layer = abe.Layer.Create(layer_name)
+            if layer:
+                # Set layer properties
+                layer.SetColor(self.highlight_color)
+                layer.SetLineStyle(1)  # Solid line
+                layer.SetLineWidth(2)  # Thicker line
+                layer.SetVisible(True)
+                layer.SetLocked(False)
+                layer.SetPrintable(True)
+                
+                self.highlight_layer = layer
+                self.created_highlight_layer = True
+                return True
+                
+        except Exception as e:
+            print(f"Warning: Could not create highlight layer: {e}")
+            # Fallback: use a standard layer
+            try:
+                self.highlight_layer = abe.Layer.Find("Standard")
+                if self.highlight_layer:
+                    return True
+            except:
+                pass
+        
+        return False
+
+    def cleanup_highlight_layer(self, doc: abe.Document) -> None:
+        """
+        Clean up the highlight layer if we created it.
+        
+        Args:
+            doc: Document to clean up
+        """
+        if self.created_highlight_layer and self.highlight_layer:
+            try:
+                # Remove all elements on the highlight layer
+                elements = abe.ModelElementFilter(doc, abe.ElementFilter.Layer(self.highlight_layer))
+                for element in elements:
+                    try:
+                        element.Delete()
+                    except:
+                        pass
+                
+                # Don't delete the layer itself as it might be used elsewhere
+                # self.highlight_layer.Delete()
+                
+                self.created_highlight_layer = False
+            except Exception as e:
+                print(f"Warning: Could not clean up highlight layer: {e}")
+
     def get_open_drawing_files(self) -> List[abe.Document]:
         """
         Get all open drawing files (parts) in the current project.
@@ -288,13 +369,123 @@ class ProjectModelComparator:
             print(f"Warning: Could not compare elements: {e}")
             return False, 0.0
 
-    def compare_drawing_files(self, doc1: abe.Document, doc2: abe.Document) -> Dict:
+    def highlight_missing_elements(self, doc: abe.Document, missing_elements: List[Dict]) -> int:
+        """
+        Highlight elements that are missing in the second drawing file.
+        Creates visual markers at the positions of missing elements.
+        
+        Args:
+            doc: The second document where elements are missing
+            missing_elements: List of element info that are missing
+            
+        Returns:
+            Number of elements highlighted
+        """
+        highlighted_count = 0
+        
+        if not doc or not missing_elements:
+            return 0
+        
+        try:
+            # Create highlight layer
+            if not self.create_highlight_layer(doc):
+                print("Warning: Could not create highlight layer. Using default layer.")
+                # Try to use an existing layer
+                try:
+                    self.highlight_layer = abe.Layer.Find("Standard")
+                except:
+                    self.highlight_layer = None
+            
+            print(f"\nHighlighting {len(missing_elements)} missing elements in: {doc.GetName()}")
+            
+            # Highlight each missing element
+            for element_info in missing_elements:
+                try:
+                    props = element_info.get('properties', {})
+                    
+                    # Get the position (use bbox center if available)
+                    if 'bbox_center' in props:
+                        center = props['bbox_center']
+                        x, y, z = center[0], center[1], center[2]
+                        
+                        # Create a marker at this position
+                        # We'll create a small sphere or text marker
+                        
+                        # Option 1: Create a small sphere
+                        sphere = abe.Sphere.Create(
+                            geom.Point3D(x, y, z),
+                            0.1  # Radius of 10cm
+                        )
+                        
+                        if sphere:
+                            # Set sphere properties
+                            if self.highlight_layer:
+                                sphere.SetLayer(self.highlight_layer)
+                            sphere.SetColor(self.highlight_color)
+                            sphere.SetFillColor(self.highlight_color)
+                            sphere.SetTransparency(0.5)  # Semi-transparent
+                            highlighted_count += 1
+                        
+                        # Option 2: Also create a text label
+                        element_type = props.get('type', 'Unknown')
+                        text = f"MISSING: {element_type}"
+                        
+                        text_element = abe.Text3D.Create(
+                            geom.Point3D(x, y, z + 0.2),  # Slightly above the sphere
+                            text,
+                            0.1  # Height
+                        )
+                        
+                        if text_element:
+                            if self.highlight_layer:
+                                text_element.SetLayer(self.highlight_layer)
+                            text_element.SetColor(self.highlight_color)
+                            
+                    elif 'bbox_min' in props and 'bbox_max' in props:
+                        # If we have bbox, create a bounding box representation
+                        min_pt = geom.Point3D(props['bbox_min'][0], props['bbox_min'][1], props['bbox_min'][2])
+                        max_pt = geom.Point3D(props['bbox_max'][0], props['bbox_max'][1], props['bbox_max'][2])
+                        
+                        # Create a box at this location
+                        # For simplicity, create a sphere at the center
+                        center_x = (props['bbox_min'][0] + props['bbox_max'][0]) / 2
+                        center_y = (props['bbox_min'][1] + props['bbox_max'][1]) / 2
+                        center_z = (props['bbox_min'][2] + props['bbox_max'][2]) / 2
+                        
+                        sphere = abe.Sphere.Create(
+                            geom.Point3D(center_x, center_y, center_z),
+                            0.1
+                        )
+                        
+                        if sphere:
+                            if self.highlight_layer:
+                                sphere.SetLayer(self.highlight_layer)
+                            sphere.SetColor(self.highlight_color)
+                            sphere.SetFillColor(self.highlight_color)
+                            sphere.SetTransparency(0.5)
+                            highlighted_count += 1
+                            
+                except Exception as e:
+                    print(f"Warning: Could not highlight element: {e}")
+                    continue
+            
+            print(f"Successfully highlighted {highlighted_count} missing elements.")
+            
+        except Exception as e:
+            print(f"Error highlighting missing elements: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return highlighted_count
+
+    def compare_drawing_files(self, doc1: abe.Document, doc2: abe.Document, highlight_missing: bool = True) -> Dict:
         """
         Compare two drawing files within the same project.
         
         Args:
-            doc1: First drawing file document
-            doc2: Second drawing file document
+            doc1: First drawing file document (reference)
+            doc2: Second drawing file document (to check against)
+            highlight_missing: Whether to highlight missing elements in doc2
             
         Returns:
             Dictionary containing comparison results
@@ -307,6 +498,8 @@ class ProjectModelComparator:
             'only_in_drawing2': [],
             'similar_pairs': [],
             'different_pairs': [],
+            'missing_in_drawing2': [],  # Elements from doc1 missing in doc2
+            'missing_in_drawing1': [],  # Elements from doc2 missing in doc1
             'summary': {}
         }
         
@@ -354,6 +547,17 @@ class ProjectModelComparator:
             common_signatures = set(signatures1.keys()) & set(signatures2.keys())
             only_in_1 = set(signatures1.keys()) - set(signatures2.keys())
             only_in_2 = set(signatures2.keys()) - set(signatures1.keys())
+            
+            # Store missing elements with their properties
+            results['missing_in_drawing2'] = [
+                {'signature': sig, 'properties': signatures1[sig]['properties']}
+                for sig in only_in_1
+            ]
+            
+            results['missing_in_drawing1'] = [
+                {'signature': sig, 'properties': signatures2[sig]['properties']}
+                for sig in only_in_2
+            ]
             
             # Check for similar but not identical elements
             similar_pairs = []
@@ -407,8 +611,16 @@ class ProjectModelComparator:
                 'only_in_drawing1_count': len(only_in_1),
                 'only_in_drawing2_count': len(only_in_2),
                 'similar_pairs_count': len(similar_pairs),
-                'different_pairs_count': len(different_pairs)
+                'different_pairs_count': len(different_pairs),
+                'missing_in_drawing2_count': len(results['missing_in_drawing2']),
+                'missing_in_drawing1_count': len(results['missing_in_drawing1'])
             }
+            
+            # Highlight missing elements if requested
+            if highlight_missing and len(results['missing_in_drawing2']) > 0:
+                print(f"\nHighlighting {len(results['missing_in_drawing2'])} elements from {name1} that are missing in {name2}...")
+                highlighted = self.highlight_missing_elements(doc2, results['missing_in_drawing2'])
+                results['summary']['highlighted_count'] = highlighted
             
         except Exception as e:
             results['error'] = str(e)
@@ -437,9 +649,9 @@ class ProjectModelComparator:
         
         # Drawing file information
         report.append("DRAWING FILES:")
-        report.append(f"  Drawing 1: {results['drawing1']['name']}")
+        report.append(f"  Drawing 1 (Reference): {results['drawing1']['name']}")
         report.append(f"    Path: {results['drawing1']['path']}")
-        report.append(f"  Drawing 2: {results['drawing2']['name']}")
+        report.append(f"  Drawing 2 (Compared): {results['drawing2']['name']}")
         report.append(f"    Path: {results['drawing2']['path']}")
         report.append("")
         
@@ -455,6 +667,15 @@ class ProjectModelComparator:
         report.append(f"  Different element pairs: {summary['different_pairs_count']}")
         report.append("")
         
+        # Missing elements
+        report.append("MISSING ELEMENTS:")
+        report.append(f"  Elements in Drawing 1 missing from Drawing 2: {summary.get('missing_in_drawing2_count', 0)}")
+        report.append(f"  Elements in Drawing 2 missing from Drawing 1: {summary.get('missing_in_drawing1_count', 0)}")
+        
+        if 'highlighted_count' in summary:
+            report.append(f"  Highlighted in Drawing 2: {summary['highlighted_count']}")
+        report.append("")
+        
         # Calculate percentages
         if summary['total_drawing1'] > 0 or summary['total_drawing2'] > 0:
             total_all = summary['total_drawing1'] + summary['total_drawing2']
@@ -463,6 +684,28 @@ class ProjectModelComparator:
             report.append("")
         
         # Details
+        if summary.get('missing_in_drawing2_count', 0) > 0:
+            report.append("ELEMENTS IN DRAWING 1 MISSING FROM DRAWING 2:")
+            for item in results['missing_in_drawing2'][:10]:  # Show first 10
+                sig = item['signature']
+                props = item.get('properties', {})
+                element_type = props.get('type', 'Unknown')
+                report.append(f"  - {element_type}: {sig}")
+            if summary['missing_in_drawing2_count'] > 10:
+                report.append(f"  ... and {summary['missing_in_drawing2_count'] - 10} more")
+            report.append("")
+        
+        if summary.get('missing_in_drawing1_count', 0) > 0:
+            report.append("ELEMENTS IN DRAWING 2 MISSING FROM DRAWING 1:")
+            for item in results['missing_in_drawing1'][:10]:  # Show first 10
+                sig = item['signature']
+                props = item.get('properties', {})
+                element_type = props.get('type', 'Unknown')
+                report.append(f"  - {element_type}: {sig}")
+            if summary['missing_in_drawing1_count'] > 10:
+                report.append(f"  ... and {summary['missing_in_drawing1_count'] - 10} more")
+            report.append("")
+        
         if summary['only_in_drawing1_count'] > 0:
             report.append("ELEMENTS ONLY IN DRAWING 1:")
             for sig in results['only_in_drawing1'][:10]:  # Show first 10
@@ -495,6 +738,10 @@ class ProjectModelComparator:
                 report.append(f"  ... and {summary['similar_pairs_count'] - 10} more")
             report.append("")
         
+        report.append("=" * 70)
+        report.append("HIGHLIGHTING:")
+        report.append("  Missing elements from Drawing 1 have been highlighted in Drawing 2")
+        report.append("  with red spheres and text labels on the 'COMPARISON_HIGHLIGHT_MISSING' layer.")
         report.append("=" * 70)
         report.append("END OF REPORT")
         report.append("=" * 70)
@@ -530,6 +777,7 @@ def main():
     print("=" * 70)
     print("ALLPLAN PROJECT MODEL COMPARATOR")
     print("Compare 3D elements between two drawing files in the same project")
+    print("Missing elements will be HIGHLIGHTED in the second drawing file")
     print("=" * 70)
     print()
     
@@ -564,10 +812,13 @@ def main():
         
         # Let user select two drawing files
         print("Select two drawing files to compare:")
+        print("  The first will be the REFERENCE")
+        print("  Elements missing from the first will be HIGHLIGHTED in the second")
+        print()
         
         try:
-            choice1 = int(input(f"Enter number for first drawing (1-{len(open_docs)}): ").strip())
-            choice2 = int(input(f"Enter number for second drawing (1-{len(open_docs)}): ").strip())
+            choice1 = int(input(f"Enter number for first drawing (REFERENCE) (1-{len(open_docs)}): ").strip())
+            choice2 = int(input(f"Enter number for second drawing (TO CHECK) (1-{len(open_docs)}): ").strip())
         except ValueError:
             print("ERROR: Please enter valid numbers.")
             return
@@ -588,11 +839,12 @@ def main():
         name1 = doc1.GetName() if doc1 else "Unknown"
         name2 = doc2.GetName() if doc2 else "Unknown"
         
-        print(f"\nComparing: {name1} vs {name2}")
+        print(f"\nComparing: {name1} (REFERENCE) vs {name2} (TO CHECK)")
+        print("Missing elements from REFERENCE will be highlighted in TO CHECK")
         print("Please wait...")
         
-        # Perform comparison
-        results = comparator.compare_drawing_files(doc1, doc2)
+        # Perform comparison with highlighting enabled
+        results = comparator.compare_drawing_files(doc1, doc2, highlight_missing=True)
         
         # Generate and display report
         report = comparator.generate_report(results)
@@ -609,6 +861,11 @@ def main():
                 print(f"Report saved successfully!")
             else:
                 print("Failed to save report.")
+        
+        print("\n" + "=" * 70)
+        print("COMPARISON COMPLETE")
+        print("Check the second drawing file for highlighted missing elements!")
+        print("=" * 70)
         
     except Exception as e:
         print(f"\nERROR: {e}")
