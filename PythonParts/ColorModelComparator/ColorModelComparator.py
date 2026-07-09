@@ -1,6 +1,7 @@
 """
 Color Model Comparator - PythonPart Version
-This is a proper PythonPart that can be double-clicked in the Allplan Library.
+Uses Allplan color IDs (1=Red, 2=Yellow, 3=Cyan, etc.)
+Double-click in Library to run.
 """
 
 import NemAll_Python_BaseElements as AllplanBaseElements
@@ -10,6 +11,47 @@ import NemAll_Python_IFW_ElementAdapter as AllplanElementAdapter
 from BuildingElement import BuildingElement
 from typing import Dict, List, Tuple, Optional, Any
 import math
+
+
+# Allplan color ID to RGB mapping
+ALLPLAN_COLORS = {
+    1: (255, 0, 0),     # Red
+    2: (255, 255, 0),   # Yellow
+    3: (0, 255, 255),   # Cyan
+    4: (0, 255, 0),     # Green
+    5: (255, 0, 255),   # Magenta
+    6: (0, 0, 255),     # Blue
+    7: (255, 255, 255), # White
+    8: (0, 0, 0),       # Black
+    9: (192, 192, 192), # Gray 1
+    10: (128, 128, 128), # Gray 2
+    11: (128, 0, 0),    # Dark Red
+    12: (128, 128, 0),  # Dark Yellow
+    13: (0, 128, 128),  # Dark Cyan
+    14: (0, 128, 0),    # Dark Green
+    15: (128, 0, 128),  # Dark Magenta
+    16: (0, 0, 128),    # Dark Blue
+}
+
+# Allplan color ID to name mapping
+COLOR_NAMES = {
+    1: "Red",
+    2: "Yellow",
+    3: "Cyan",
+    4: "Green",
+    5: "Magenta",
+    6: "Blue",
+    7: "White",
+    8: "Black",
+    9: "Gray 1",
+    10: "Gray 2",
+    11: "Dark Red",
+    12: "Dark Yellow",
+    13: "Dark Cyan",
+    14: "Dark Green",
+    15: "Dark Magenta",
+    16: "Dark Blue",
+}
 
 
 class ColorModelComparator:
@@ -31,9 +73,20 @@ class ColorModelComparator:
 
     def create_element(self, build_ele: BuildingElement, doc: AllplanElementAdapter.DocumentAdapter):
         """Create element - this is called when the PythonPart is run."""
-        # Run the comparison when the PythonPart is started
         self.run_comparison(build_ele, doc)
         return None
+
+    def get_color_from_id(self, color_id: int) -> AllplanBaseElements.Color:
+        """Get Allplan Color object from color ID."""
+        if color_id in ALLPLAN_COLORS:
+            r, g, b = ALLPLAN_COLORS[color_id]
+            return AllplanBaseElements.Color(r, g, b)
+        # Default to red if ID not found
+        return AllplanBaseElements.Color(255, 0, 0)
+
+    def get_color_name_from_id(self, color_id: int) -> str:
+        """Get color name from ID."""
+        return COLOR_NAMES.get(color_id, f"Color {color_id}")
 
     def colors_match(self, color1, color2, tolerance=5) -> bool:
         """Check if two colors match within a tolerance."""
@@ -278,26 +331,22 @@ class ColorModelComparator:
         """Run the color comparison."""
         print("=" * 70)
         print("ALLPLAN COLOR MODEL COMPARATOR")
-        print("Comparing 3D models by color across all open drawing files")
+        print("Using Allplan color IDs (1=Red, 2=Yellow, 3=Cyan, 4=Green, etc.)")
         print("=" * 70)
         
         try:
-            # Get color values from building element
-            color1 = AllplanBaseElements.Color(
-                build_ele.Color1Red.value,
-                build_ele.Color1Green.value,
-                build_ele.Color1Blue.value
-            )
-            color2 = AllplanBaseElements.Color(
-                build_ele.Color2Red.value,
-                build_ele.Color2Green.value,
-                build_ele.Color2Blue.value
-            )
-            color1_name = build_ele.Color1Name.value
-            color2_name = build_ele.Color2Name.value
+            # Get color IDs from building element
+            color1_id = build_ele.Color1ID.value
+            color2_id = build_ele.Color2ID.value
             
-            print(f"\nComparing: {color1_name} (R{color1.Red}G{color1.Green}B{color1.Blue})")
-            print(f"         vs {color2_name} (R{color2.Red}G{color2.Green}B{color2.Blue})")
+            # Get color objects and names
+            color1 = self.get_color_from_id(color1_id)
+            color2 = self.get_color_from_id(color2_id)
+            color1_name = build_ele.Color1Name.value or self.get_color_name_from_id(color1_id)
+            color2_name = build_ele.Color2Name.value or self.get_color_name_from_id(color2_id)
+            
+            print(f"\nComparing: {color1_name} (ID: {color1_id}) vs {color2_name} (ID: {color2_id})")
+            print(f"RGB: ({color1.Red},{color1.Green},{color1.Blue}) vs ({color2.Red},{color2.Green},{color2.Blue})")
             
             # Get all open documents
             open_docs = self.get_all_open_documents()

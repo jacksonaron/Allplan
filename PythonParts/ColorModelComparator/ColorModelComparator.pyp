@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PythonPart xmlns="http://www.nemetschek.com/Allplan/PythonPart/1.0">
   <Name>Color Model Comparator</Name>
-  <Description>Compare 3D models by color across all open drawing files. Double-click to run comparison and highlight missing elements.</Description>
+  <Description>Compare 3D models by Allplan color ID (1=Red, 2=Yellow, 3=Cyan, 4=Green, etc.). Double-click to run.</Description>
   <Author>Your Name</Author>
   <Version>1.0</Version>
   <Date>2024-12-19</Date>
@@ -13,9 +13,9 @@
   <Startable>true</Startable>
   <Palette>
     <Name>Color Model Comparator</Name>
-    <Description>Compare models by color and highlight missing elements</Description>
+    <Description>Compare models by Allplan color ID and highlight missing elements</Description>
     <Width>350</Width>
-    <Height>250</Height>
+    <Height>300</Height>
     <ControlProperties>
       <ControlProperty>
         <Name>Tolerance</Name>
@@ -26,62 +26,30 @@
         <MaxValue>1.0</MaxValue>
       </ControlProperty>
       <ControlProperty>
-        <Name>Color1Red</Name>
-        <Description>First color - Red component</Description>
+        <Name>Color1ID</Name>
+        <Description>First color ID (1=Red, 2=Yellow, 3=Cyan, 4=Green, 5=Magenta, 6=Blue)</Description>
         <Type>Integer</Type>
-        <DefaultValue>255</DefaultValue>
-        <MinValue>0</MinValue>
-        <MaxValue>255</MaxValue>
+        <DefaultValue>1</DefaultValue>
+        <MinValue>1</MinValue>
+        <MaxValue>16</MaxValue>
       </ControlProperty>
       <ControlProperty>
-        <Name>Color1Green</Name>
-        <Description>First color - Green component</Description>
+        <Name>Color2ID</Name>
+        <Description>Second color ID (1=Red, 2=Yellow, 3=Cyan, 4=Green, 5=Magenta, 6=Blue)</Description>
         <Type>Integer</Type>
-        <DefaultValue>0</DefaultValue>
-        <MinValue>0</MinValue>
-        <MaxValue>255</MaxValue>
-      </ControlProperty>
-      <ControlProperty>
-        <Name>Color1Blue</Name>
-        <Description>First color - Blue component</Description>
-        <Type>Integer</Type>
-        <DefaultValue>0</DefaultValue>
-        <MinValue>0</MinValue>
-        <MaxValue>255</MaxValue>
-      </ControlProperty>
-      <ControlProperty>
-        <Name>Color2Red</Name>
-        <Description>Second color - Red component</Description>
-        <Type>Integer</Type>
-        <DefaultValue>0</DefaultValue>
-        <MinValue>0</MinValue>
-        <MaxValue>255</MaxValue>
-      </ControlProperty>
-      <ControlProperty>
-        <Name>Color2Green</Name>
-        <Description>Second color - Green component</Description>
-        <Type>Integer</Type>
-        <DefaultValue>255</DefaultValue>
-        <MinValue>0</MinValue>
-        <MaxValue>255</MaxValue>
-      </ControlProperty>
-      <ControlProperty>
-        <Name>Color2Blue</Name>
-        <Description>Second color - Blue component</Description>
-        <Type>Integer</Type>
-        <DefaultValue>0</DefaultValue>
-        <MinValue>0</MinValue>
-        <MaxValue>255</MaxValue>
+        <DefaultValue>3</DefaultValue>
+        <MinValue>1</MinValue>
+        <MaxValue>16</MaxValue>
       </ControlProperty>
       <ControlProperty>
         <Name>Color1Name</Name>
-        <Description>Name for first color set</Description>
+        <Description>Name for first color set (e.g., Existing)</Description>
         <Type>String</Type>
         <DefaultValue>Existing</DefaultValue>
       </ControlProperty>
       <ControlProperty>
         <Name>Color2Name</Name>
-        <Description>Name for second color set</Description>
+        <Description>Name for second color set (e.g., Proposed)</Description>
         <Type>String</Type>
         <DefaultValue>Proposed</DefaultValue>
       </ControlProperty>
